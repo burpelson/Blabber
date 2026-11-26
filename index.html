@@ -118,6 +118,8 @@ input[type=range]{width:100%;height:32px;accent-color:var(--acc)}
       <div class="bar" id="aiBarWrap" hidden><i id="aiBar"></i></div>
       <label class="f" for="aiVoice">AI voice</label>
       <select id="aiVoice"></select>
+      <label class="f" for="engine">AI engine</label>
+      <select id="engine"></select>
     </div>
 
     <div class="box" id="recBox" hidden>
@@ -307,27 +309,48 @@ async function kvGet(k){try{const db=await idb();return await new Promise(res=>{
 async function kvSet(k,v){try{const db=await idb();await new Promise(res=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=res})}catch(e){}}
 const hash=s=>{let h=5381;for(let i=0;i<s.length;i++)h=(h*33^s.charCodeAt(i))>>>0;return h.toString(36)};
 
-/* ---------- AI voices (Kokoro, open-source, runs on the device) ---------- */
-const MODEL='onnx-community/Kokoro-82M-v1.0-ONNX';
-let kok=null,kokP=null;
-function aiUI(){const ok=!!kok;$('aiLoad').hidden=ok;$('aiText').textContent=ok?'AI voices are ready.':'AI voices sound much more natural and can use real effects. They need a one-time download of about 90 MB, so use Wi-Fi.'}
+/* ---------- AI voices (Kokoro, open-source, runs on the device in a background worker) ---------- */
+const WORKER_SRC=`import {KokoroTTS} from 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js';
+const M='onnx-community/Kokoro-82M-v1.0-ONNX';let tts=null;
+const cb=p=>{if(p&&p.status==='progress'&&p.file)self.postMessage({type:'progress',file:p.file,loaded:p.loaded||0,total:p.total||0})};
+self.onmessage=async e=>{const m=e.data;try{
+ if(m.type==='load'){tts=await KokoroTTS.from_pretrained(M,m.engine==='fast'?{dtype:'fp32',device:'webgpu',progress_callback:cb}:{dtype:'q8',device:'wasm',progress_callback:cb});self.postMessage({type:'loaded'})}
+ else if(m.type==='gen'){const a=await tts.generate(m.text,{voice:m.voice,speed:m.speed});const d=new Float32Array(a.audio);self.postMessage({type:'audio',id:m.id,sr:a.sampling_rate||24000,data:d},[d.buffer])}
+}catch(err){self.postMessage({type:'error',id:m.id,msg:String((err&&err.message)||err)})}};`;
+const ENGINES={std:'Standard (works on most phones, about 90 MB)',fast:'Fast (uses your graphics chip, about 300 MB)'};
+let engine='std';try{engine=localStorage.getItem('blabberboard.engine')||'std'}catch(e){}
+let wk=null,kok=false,kokP=null,jobs=new Map(),jobN=0;
+function aiUI(){$('aiLoad').hidden=kok;$('aiText').textContent=kok?`AI voices are ready (${engine==='fast'?'Fast':'Standard'} engine).`:'AI voices sound much more natural and can use real effects. The first download is big, so use Wi-Fi.'}
+function killWorker(){if(wk){wk.terminate();wk=null}kok=false;kokP=null;for(const j of jobs.values())j.rej(new Error('stopped'));jobs.clear()}
 function loadAI(){
- if(kok)return Promise.resolve(kok);if(kokP)return kokP;
- $('aiBarWrap').hidden=false;$('aiText').textContent='Downloading the AI voice model… This only happens once.';
- const files={};const progress_callback=p=>{if(p&&p.status==='progress'&&p.file){files[p.file]=[p.loaded||0,p.total||0];let a=0,b=0;for(const k in files){a+=files[k][0];b+=files[k][1]}if(b)$('aiBar').style.width=(100*a/b).toFixed(1)+'%'}};
- kokP=(async()=>{let mod;
-  try{mod=await import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm')}catch(e){mod=await import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js')}
-  kok=await mod.KokoroTTS.from_pretrained(MODEL,{dtype:'q8',device:'wasm',progress_callback});return kok})();
- kokP.then(()=>{$('aiBarWrap').hidden=true;aiUI()},()=>{kokP=null;$('aiBarWrap').hidden=true;$('aiLoad').hidden=false;
-  $('aiText').textContent=IN_FRAME?'AI voices can’t download inside the Claude preview. They’ll work once you put the app on your own site (see the setup guide).':'Couldn’t load the AI voices. Check your connection and try again.'});
+ if(kok)return Promise.resolve();if(kokP)return kokP;
+ $('aiBarWrap').hidden=false;$('aiBar').style.width='0';$('aiText').textContent='Getting the AI voice ready… The download only happens once.';
+ const files={};
+ kokP=new Promise((res,rej)=>{
+  try{wk=new Worker(URL.createObjectURL(new Blob([WORKER_SRC],{type:'text/javascript'})),{type:'module'})}catch(e){return rej(e)}
+  wk.onerror=ev=>{rej(new Error(ev.message||'The AI engine could not start.'))};
+  wk.onmessage=ev=>{const m=ev.data;
+   if(m.type==='progress'){files[m.file]=[m.loaded,m.total];let a=0,b=0;for(const k in files){a+=files[k][0];b+=files[k][1]}if(b)$('aiBar').style.width=(100*a/b).toFixed(1)+'%'}
+   else if(m.type==='loaded'){kok=true;res()}
+   else if(m.type==='audio'){const j=jobs.get(m.id);if(j){jobs.delete(m.id);j.res(m)}}
+   else if(m.type==='error'){const j=m.id!=null&&jobs.get(m.id);if(j){jobs.delete(m.id);j.rej(new Error(m.msg))}else rej(new Error(m.msg))}};
+  wk.postMessage({type:'load',engine})});
+ kokP.then(()=>{$('aiBarWrap').hidden=true;aiUI()},err=>{killWorker();$('aiBarWrap').hidden=true;$('aiLoad').hidden=false;
+  $('aiText').textContent=IN_FRAME?'AI voices can’t download inside the Claude preview. They’ll work once you put the app on your own site (see the setup guide).':`Couldn’t start the AI voices (${String(err.message).slice(0,140)}). Try the other engine, or check your connection.`});
  return kokP}
+function aiGen(text,voice,speed){return new Promise((res,rej)=>{const id=++jobN,t0=Date.now();
+ const tick=setInterval(()=>{const s=Math.round((Date.now()-t0)/1000);say(`Making the AI voice… ${s}s`);
+  if(s>=90){clearInterval(tick);jobs.delete(id);killWorker();aiUI();rej(new Error('timeout'))}},1000);
+ jobs.set(id,{res:v=>{clearInterval(tick);res(v)},rej:e=>{clearInterval(tick);rej(e)}});wk.postMessage({type:'gen',id,text,voice,speed})})}
 const aiMem=new Map();
 async function aiBuffer(text,voice,e){
  e={...E0,...e};const speed=clamp(e.speed/clamp(e.pitch,.5,2),.5,2),key='ai:'+hash(voice+'|'+speed.toFixed(2)+'|'+text);
  if(aiMem.has(key))return aiMem.get(key);
  const c=A();let st=await kvGet(key);
  if(!st){if(!kok){say('Loading AI voices first…');await loadAI()}say('Making the AI voice…');
-  const raw=await kok.generate(text,{voice,speed});st={sr:raw.sampling_rate||24000,data:raw.audio instanceof Float32Array?raw.audio:new Float32Array(raw.audio)};kvSet(key,st)}
+  let m;try{m=await aiGen(text,voice,speed)}catch(err){
+   throw new Error(err.message==='timeout'?(engine==='std'?'The AI voice got stuck on this phone. Switch the AI engine to Fast (in the AI box above) and try again.':'The AI voice got stuck on this phone. Try the Standard engine, or use phone voices or recordings.'):'AI voice error: '+String(err.message).slice(0,160))}
+  st={sr:m.sr,data:m.data};kvSet(key,st)}
  const b=c.createBuffer(1,st.data.length,st.sr);b.getChannelData(0).set(st.data);aiMem.set(key,b);return b}
 async function recBuffer(id){const blob=await kvGet('rec:'+id);if(!blob)return null;const c=A();return await c.decodeAudioData(await blob.arrayBuffer())}
 
@@ -377,7 +400,7 @@ async function run(p,padEl){
    if(src==='rec'){buf=p.recId&&await recBuffer(p.recId);if(!buf)say('That recording isn’t on this device.')}
    if(buf&&alive()){say('');const out=await renderFx(buf,p.e);lastOut=out;if(alive())await playBuf(out)}}
   if(alive()&&p.post&&p.post!=='none')await wait(playSfx(p.post));
- }catch(err){if(alive())say(p.source==='ai'&&!kok?$('aiText').textContent:'Something went wrong playing that. Try again.')}
+ }catch(err){if(alive())say(p.source==='ai'?(kok||err.message.startsWith('The AI')||err.message.startsWith('AI voice')?err.message:$('aiText').textContent):'Something went wrong playing that. Try again.')}
  if(alive())idle()}
 function idle(){document.body.classList.remove('talking');if(livePad)livePad.classList.remove('live');livePad=null}
 function stop(){runId++;if(TTS)TTS.cancel();stopAudio();if(curEnd)curEnd();idle()}
@@ -466,6 +489,8 @@ $('txt').addEventListener('input',e=>cur.text=e.target.value);
 $('voice').addEventListener('change',e=>cur.voice=e.target.value);
 $('aiVoice').addEventListener('change',e=>cur.aiVoice=e.target.value);
 $('aiLoad').addEventListener('click',()=>{loadAI().catch(()=>{})});
+$('engine').innerHTML=Object.entries(ENGINES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');$('engine').value=engine;
+$('engine').addEventListener('change',e=>{engine=e.target.value;try{localStorage.setItem('blabberboard.engine',engine)}catch(x){}killWorker();aiUI();say('')});
 ['pitch','rate','volume'].forEach(k=>$(k).addEventListener('input',e=>{cur[k]=+e.target.value;$(k+'V').textContent=cur[k].toFixed(2);custom()}));
 $('epitch').addEventListener('input',e=>{cur.e.pitch=+e.target.value;$('epitchV').textContent=cur.e.pitch.toFixed(2)+'×';custom()});
 $('espeed').addEventListener('input',e=>{cur.e.speed=+e.target.value;$('espeedV').textContent=cur.e.speed.toFixed(2)+'×';custom()});
