@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blabber Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: loud, silly, toy-like, but tidy enough to use every day
+   IDEA: a chunky pad sampler / toy soundboard you mash with your thumbs
+   PICTURE: the working tool itself: composer + a wall of fat, pressable pads; a little talking face
+   COLOUR and TYPE: sunshine-yellow ground, black ink, tomato accent, candy pads; Fredoka + Rubik
+   LAYOUT: composer column beside the board on wide screens, stacked on phones */
+:root{color-scheme:light dark;--bg:light-dark(#ffd23f,#21160f);--ink:light-dark(#1d1300,#fff1d6);--panel:light-dark(#fff7dc,#33241a);--line:light-dark(#1d1300,#5a4232);--soft:light-dark(#6b5420,#c8ad8a);--acc:#e63e2b;--chip:light-dark(#ffe98a,#47331f);--field:light-dark(#fff,#21160f)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Rubik,system-ui,sans-serif;overflow-x:clip}
+h1,h2,.pad b{font-family:Fredoka,Rubik,sans-serif}
+.band{padding:clamp(18px,3vw,40px) max(4vw,14px)}
+header{display:flex;align-items:center;gap:16px;padding-bottom:0}
+header svg{width:72px;height:72px;flex:none}
+h1{font-size:clamp(34px,6vw,50px);line-height:1.05;margin:0;font-weight:700}
+header p{margin:2px 0 0;color:var(--soft)}
+.wrap{display:grid;grid-template-columns:minmax(0,430px) minmax(0,1fr);gap:24px;max-width:1240px;align-items:start}
+@media(max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:2.5px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 6px 0 var(--line)}
+h2{font-size:24px;margin:0 0 10px;line-height:1.1;font-weight:600}
+h3{font-size:16px;margin:14px 0 4px}
+textarea,input[type=text],select{width:100%;font:16px Rubik,sans-serif;color:var(--ink);background:var(--field);border:2px solid var(--line);border-radius:14px;padding:12px}
+textarea{min-height:96px;resize:vertical}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:2.5px solid var(--line);border-radius:16px;overflow:hidden;margin-bottom:12px}
+.seg button{min-height:48px;border:0;border-left:2px solid var(--line);background:var(--field);color:var(--ink);font:600 15px Rubik,sans-serif;cursor:pointer;padding:4px}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.chip{min-height:40px;padding:6px 14px;border-radius:999px;border:2px solid var(--line);background:var(--chip);color:var(--ink);font:500 15px Rubik,sans-serif;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{min-height:48px;padding:0 18px;border-radius:14px;border:2.5px solid var(--line);background:var(--panel);color:var(--ink);font:600 16px Rubik,sans-serif;cursor:pointer;box-shadow:0 4px 0 var(--line);display:inline-flex;align-items:center;justify-content:center}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.btn.go{background:var(--acc);color:#fff;flex:1;font:700 20px Fredoka,sans-serif;white-space:nowrap}
+@media(max-width:600px){#presets{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;margin-inline:-18px;padding-inline:18px;scroll-snap-type:x proximity}#presets .chip{flex:none;scroll-snap-align:start}}
+.btn.small{min-height:44px;font-size:15px;padding:0 14px}
+.btn input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.box{background:var(--chip);border-radius:14px;padding:12px;margin-bottom:12px;font-size:15px}
+.box p{margin:0 0 8px}
+.bar{height:10px;border-radius:99px;background:var(--field);border:1.5px solid var(--line);overflow:hidden;margin-top:8px}
+.bar i{display:block;height:100%;width:0;background:var(--acc)}
+details{margin-top:14px;border-top:2px dashed var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:600;min-height:44px;display:flex;align-items:center}
+label.f{display:block;margin:10px 0 2px;font-size:14px;font-weight:600}
+label.f span{float:right;font-weight:500;color:var(--soft);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;height:32px;accent-color:var(--acc)}
+.twists{display:flex;flex-wrap:wrap;gap:6px 14px}
+.twists label{display:flex;align-items:center;gap:6px;min-height:40px;font-size:15px}
+.twists input{width:20px;height:20px;accent-color:var(--acc)}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.save{margin-top:14px;border-top:2px dashed var(--line);padding-top:12px}
+.swatches{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.sw{width:36px;height:36px;border-radius:50%;border:3px solid transparent;cursor:pointer;padding:0}
+.sw[aria-pressed=true]{border-color:var(--ink);box-shadow:0 0 0 2px var(--panel) inset}
+.editing{background:var(--chip);border-radius:12px;padding:8px 12px;margin-bottom:10px;font-size:15px}
+.msg{font-size:14px;margin:10px 0 0;min-height:1.4em}
+.boardhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.status{font-size:13px;color:var(--soft)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin-top:8px}
+@media(max-width:420px){.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+.pw{position:relative}
+.pad{width:100%;min-height:118px;border:2.5px solid #1d1300;border-radius:18px;background:var(--c);color:#fff;text-align:left;padding:12px 12px 30px;cursor:pointer;box-shadow:0 6px 0 #1d1300;display:flex;flex-direction:column;gap:4px;transition:transform .06s}
+.pad:active,.pad.live{transform:translateY(4px);box-shadow:0 2px 0 #1d1300}
+.pad.live{outline:4px solid var(--ink);outline-offset:3px}
+.pad b{font-size:20px;line-height:1.1;font-weight:600;overflow-wrap:anywhere}
+.pad small{font-size:13px;opacity:.92;line-height:1.3}
+.pad em{font-style:normal;font-size:12px;font-weight:600;background:rgba(0,0,0,.28);border-radius:99px;padding:1px 8px;align-self:flex-start}
+.pw .ed{position:absolute;right:8px;bottom:12px;min-height:30px;padding:0 10px;border-radius:999px;border:0;background:rgba(0,0,0,.3);color:#fff;font:500 13px Rubik,sans-serif;cursor:pointer}
+.sfxgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;margin-top:8px}
+.sfx{min-height:56px;border-radius:14px;border:2.5px solid var(--line);background:var(--panel);color:var(--ink);font:600 15px Rubik,sans-serif;cursor:pointer;box-shadow:0 4px 0 var(--line)}
+.sfx:active{transform:translateY(3px);box-shadow:0 1px 0 var(--line)}
+.empty{padding:24px;text-align:center;color:var(--soft);border:2px dashed var(--line);border-radius:18px}
+.note{font-size:13px;color:var(--soft);margin:10px 0 0}
+.move{margin-top:28px}
+.move textarea{min-height:80px;font-size:13px;font-family:ui-monospace,monospace}
+[hidden]{display:none!important}
+#mouth{transform-origin:50px 66px;transition:transform .1s}
+.talking #mouth{animation:yap .18s infinite alternate}
+@keyframes yap{from{transform:scaleY(.25)}to{transform:scaleY(1.1)}}
+@media(prefers-reduced-motion:reduce){.talking #mouth{animation:none}.pad{transition:none}}
+</style>
+</head>
+<body>
+<header class="band">
+  <svg viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="54" r="42" fill="#1d1300"/>
+    <circle cx="50" cy="50" r="42" fill="#e63e2b" stroke="#1d1300" stroke-width="4"/>
+    <circle cx="35" cy="40" r="8" fill="#fff"/><circle cx="65" cy="40" r="8" fill="#fff"/>
+    <circle cx="37" cy="41" r="4" fill="#1d1300"/><circle cx="63" cy="41" r="4" fill="#1d1300"/>
+    <ellipse id="mouth" cx="50" cy="66" rx="16" ry="11" fill="#1d1300" transform="scale(1 .35)"/>
+  </svg>
+  <div><h1>Blabber Board</h1><p>Type it, twist it, save it, mash it.</p></div>
+</header>
+
+<main class="band wrap">
+  <section class="card" aria-labelledby="mk">
+    <h2 id="mk">Make a voice</h2>
+    <div id="editing" class="editing" hidden></div>
+    <div class="seg" role="group" aria-label="Voice source">
+      <button data-src="phone" aria-pressed="true">Phone voice</button>
+      <button data-src="ai" aria-pressed="false">AI voice</button>
+      <button data-src="rec" aria-pressed="false">My recording</button>
+    </div>
+
+    <div class="box" id="aiBox" hidden>
+      <p id="aiText">AI voices sound much more natural and can use real effects. They need a one-time download of about 90 MB, so use Wi-Fi.</p>
+      <div class="row"><button class="btn small" id="aiLoad">Load AI voices</button></div>
+      <div class="bar" id="aiBarWrap" hidden><i id="aiBar"></i></div>
+      <label class="f" for="aiVoice">AI voice</label>
+      <select id="aiVoice"></select>
+    </div>
+
+    <div class="box" id="recBox" hidden>
+      <p>Record yourself (or pick any sound), then make it silly with real effects.</p>
+      <label class="btn small" for="recFile">Record or choose a sound<input type="file" id="recFile" accept="audio/*"></label>
+      <p class="note" id="recInfo">No sound picked yet.</p>
+    </div>
+
+    <div id="textWrap">
+      <label class="f" for="txt">What should it say?</label>
+      <textarea id="txt" placeholder="Type something silly…">Hello! I am a very serious robot and I love pancakes.</textarea>
+    </div>
+    <div class="chips" id="presets" role="group" aria-label="Voice presets"></div>
+    <div class="row">
+      <button class="btn go" id="speak">Speak it</button>
+      <button class="btn" id="stop">Stop</button>
+      <button class="btn" id="surprise">Surprise me</button>
+    </div>
+    <p class="msg" id="msg" role="status"></p>
+
+    <details id="tune">
+      <summary>Fine-tune</summary>
+      <div id="phoneOpts">
+        <label class="f" for="voice">Phone voice</label>
+        <select id="voice"></select>
+        <label class="f" for="pitch">Pitch <span id="pitchV"></span></label>
+        <input type="range" id="pitch" min="0" max="2" step="0.05">
+        <label class="f" for="rate">Speed <span id="rateV"></span></label>
+        <input type="range" id="rate" min="0.3" max="3" step="0.05">
+        <label class="f" for="volume">Volume <span id="volumeV"></span></label>
+        <input type="range" id="volume" min="0.1" max="1" step="0.05">
+        <label class="f" for="mode">Delivery</label>
+        <select id="mode"></select>
+        <p class="note">Phone voices can’t go through real effects. Switch to AI voice or My recording for robot, echo, cave and the rest.</p>
+      </div>
+      <div id="fxOpts" hidden>
+        <h3>Real effects</h3>
+        <div class="chips" id="efx" role="group" aria-label="Effects" style="margin-top:4px"></div>
+        <label class="f" for="epitch">Deep ↔ squeaky <span id="epitchV"></span></label>
+        <input type="range" id="epitch" min="0.5" max="2" step="0.05">
+        <div id="espeedWrap">
+          <label class="f" for="espeed">Talking speed <span id="espeedV"></span></label>
+          <input type="range" id="espeed" min="0.5" max="2" step="0.05">
+        </div>
+        <p class="note" id="recSpeedNote" hidden>For recordings, pitch and speed move together, like a tape.</p>
+      </div>
+      <div id="twistWrap">
+        <h3>Text twists</h3>
+        <div class="twists" id="twists"></div>
+      </div>
+      <div class="two">
+        <div><label class="f" for="pre">Sound before</label><select id="pre"></select></div>
+        <div><label class="f" for="post">Sound after</label><select id="post"></select></div>
+      </div>
+      <div class="row" id="wavRow" style="margin-top:12px" hidden><button class="btn small" id="wav">Save last voice as WAV</button></div>
+    </details>
+
+    <div class="save">
+      <label class="f" for="label">Pad name</label>
+      <input type="text" id="label" maxlength="40" placeholder="e.g. Robot pancakes">
+      <div class="swatches" id="swatches" role="group" aria-label="Pad colour"></div>
+      <div class="row" id="saveRow"></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="bd">
+    <div class="boardhead"><h2 id="bd">Your soundboard</h2><span class="status" id="status">Loading…</span></div>
+    <div class="grid" id="board"></div>
+    <h2 style="margin-top:28px">Sound effects</h2>
+    <div class="sfxgrid" id="sfxs"></div>
+    <details class="move">
+      <summary>Move your board to another app or device</summary>
+      <p class="note">Copy the board code here, then paste it into Blabber Board somewhere else. Recordings stay on the device where you made them.</p>
+      <div class="row" style="margin:10px 0"><button class="btn small" id="copyCode">Copy board code</button></div>
+      <label class="f" for="pasteCode">Paste a board code</label>
+      <textarea id="pasteCode" placeholder="Paste here…"></textarea>
+      <div class="row" style="margin-top:10px"><button class="btn small" id="importAdd">Add these pads</button><button class="btn small" id="importReplace">Replace my board</button></div>
+    </details>
+    <p class="note">Phone voices come from your phone or browser, so they sound different on each device. AI voices are Kokoro, an open-source model that runs on your device.</p>
+  </section>
+</main>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,+v||0));
+const say=t=>{$('msg').textContent=t||''};
+const COLORS=['#e63e2b','#6a4cf0','#1772e0','#d63d8f','#c26400','#00818a','#9b1f86','#2f2f2f'];
+const FXN={robot:'Robot',alien:'Alien',wobble:'Wobbly',megaphone:'Megaphone',telephone:'Telephone',underwater:'Underwater',crush:'Broken radio',cave:'Cave',echo:'Echo',crowd:'Crowd',reverse:'Reverse'};
+const E0={pitch:1,speed:1};
+const P=(n,pitch,rate,volume,mode,fx,e)=>({n,pitch,rate,volume,mode,fx,e:{...E0,...e}});
+const PRESETS={
+ normal:P('Normal',1,1,1,'normal',[],{}),
+ chipmunk:P('Chipmunk',2,1.6,1,'normal',[],{pitch:1.7}),
+ giant:P('Giant',0.05,0.7,1,'normal',[],{pitch:0.6,cave:true}),
+ robot:P('Robot',0.6,0.95,1,'robot',[],{robot:true}),
+ alien:P('Alien',1.8,1.1,1,'wobble',[],{alien:true,pitch:1.2}),
+ megaphone:P('Megaphone',1.1,1.15,1,'normal',[],{megaphone:true,echo:true}),
+ telephone:P('Telephone',1,1.05,1,'normal',[],{telephone:true}),
+ underwater:P('Underwater',0.4,0.8,1,'wobble',[],{underwater:true,pitch:0.85}),
+ radio:P('Broken radio',0.8,1,1,'robot',[],{crush:true,telephone:true}),
+ coaster:P('Rollercoaster',1,1.1,1,'coaster',[],{wobble:true}),
+ ghost:P('Echo ghost',0.4,0.7,1,'echo',['stretch'],{pitch:0.8,cave:true,echo:true}),
+ crowd:P('Crowd',1,1,1,'normal',[],{crowd:true,cave:true}),
+ auction:P('Auctioneer',1.2,2.6,1,'normal',[],{speed:2,pitch:1.1}),
+ battery:P('Dying battery',1,1,1,'slowdown',[],{pitch:0.65,speed:0.7,crush:true}),
+ hyper:P('Too much sugar',1.5,1,1,'speedup',[],{pitch:1.35,speed:1.7}),
+ opera:P('Opera',1.8,0.7,1,'wobble',['stretch'],{pitch:1.3,wobble:true,cave:true}),
+ nervous:P('Nervous',1.4,1.3,1,'normal',['stutter'],{pitch:1.2,wobble:true}),
+ pirate:P('Pirate',0.6,0.95,1,'normal',['pirate'],{pitch:0.85}),
+ valley:P('Valley',1.5,1.15,1,'normal',['valley'],{pitch:1.25}),
+ whisper:P('Whisper',1.1,0.85,0.3,'normal',[],{telephone:true}),
+ backwards:P('Backwards',1,1,1,'normal',['backwards'],{reverse:true}),
+ piglatin:P('Pig Latin',1.1,1,1,'normal',['piglatin'],{})
+};
+const MODES={normal:'Normal',robot:'Robot (word by word)',coaster:'Rollercoaster pitch',wobble:'Wobble up and down',echo:'Echo',speedup:'Speeding up',slowdown:'Running out of battery'};
+const TWISTS={stutter:'Stutter',stretch:'Stretchy vowels',pirate:'Pirate talk',valley:'Like, valley',backwards:'Backwards words',piglatin:'Pig Latin'};
+const SFXN={airhorn:'Air horn',rimshot:'Ba-dum-tss',trombone:'Sad trombone',drumroll:'Drumroll',boing:'Boing',laser:'Pew pew',applause:'Applause',ding:'Ding',beep:'Beep boop',toot:'Toot'};
+const KV={af_heart:'Heart',af_bella:'Bella',af_nicole:'Nicole (soft)',af_sarah:'Sarah',af_aoede:'Aoede',af_kore:'Kore',af_alloy:'Alloy',af_nova:'Nova',af_sky:'Sky',af_jessica:'Jessica',af_river:'River',am_michael:'Michael',am_fenrir:'Fenrir',am_puck:'Puck',am_echo:'Echo',am_eric:'Eric',am_liam:'Liam',am_onyx:'Onyx',am_santa:'Santa',am_adam:'Adam',bf_emma:'Emma (British)',bf_isabella:'Isabella (British)',bf_alice:'Alice (British)',bf_lily:'Lily (British)',bm_george:'George (British)',bm_fable:'Fable (British)',bm_lewis:'Lewis (British)',bm_daniel:'Daniel (British)'};
+const SRCN={phone:'Phone',ai:'AI',rec:'Recording'};
+const IN_FRAME=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+
+/* ---------- audio context + synthesized sound effects ---------- */
+let ac=null,master=null;
+function A(){if(!ac){const C=window.AudioContext||window.webkitAudioContext;if(!C)return null;ac=new C()}
+ if(!master){master=ac.createGain();master.gain.value=.8;master.connect(ac.destination)}
+ if(ac.state==='suspended')ac.resume();return ac}
+function stopAudio(){if(master){try{master.disconnect()}catch(e){}master=null}}
+function env(g,t,a,peak,d){g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(0.0001,t+a+d)}
+function tone(type,f,t,d,peak,f2,filt){const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.setValueAtTime(f,t);if(f2)o.frequency.exponentialRampToValueAtTime(f2,t+d);let n=o;if(filt){const lp=ac.createBiquadFilter();lp.type='lowpass';lp.frequency.value=filt;o.connect(lp);n=lp}n.connect(g);g.connect(master);env(g,t,.01,peak,d);o.start(t);o.stop(t+d+.05);return o}
+let nb=null;function noise(t,d,peak,type,freq){if(!nb){nb=ac.createBuffer(1,ac.sampleRate,ac.sampleRate);const c=nb.getChannelData(0);for(let i=0;i<c.length;i++)c[i]=Math.random()*2-1}
+ const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain();s.buffer=nb;s.loop=true;f.type=type;f.frequency.value=freq;s.connect(f);f.connect(g);g.connect(master);env(g,t,.005,peak,d);s.start(t);s.stop(t+d+.05)}
+function lfoTo(param,f,depth,t,d){const l=ac.createOscillator(),g=ac.createGain();l.frequency.value=f;g.gain.value=depth;l.connect(g);g.connect(param);l.start(t);l.stop(t+d)}
+const SFX={
+ airhorn(t){[[0,.22],[.3,.1],[.48,.7]].forEach(([s,d])=>[466,587,698].forEach(f=>tone('sawtooth',f,t+s,d,.12,0,2600)));return 1300},
+ rimshot(t){tone('sine',190,t,.15,.7,90);tone('sine',140,t+.18,.18,.7,70);noise(t+.42,.9,.35,'highpass',6000);return 1400},
+ trombone(t){[392,370,349].forEach((f,i)=>tone('sawtooth',f,t+i*.45,.4,.2,0,900));lfoTo(tone('sawtooth',330,t+1.35,1.3,.2,0,900).frequency,6,9,t+1.35,1.35);return 2800},
+ drumroll(t){for(let i=0;i<34;i++)noise(t+i*.045,.06,.15+i*.008,'bandpass',1800);noise(t+1.6,1.2,.5,'highpass',5000);tone('sine',90,t+1.6,.4,.8,45);return 2700},
+ boing(t){lfoTo(tone('sine',140,t,.8,.6,420).frequency,16,70,t,.85);return 900},
+ laser(t){tone('square',1800,t,.3,.15,120);tone('square',1800,t+.35,.3,.15,120);return 750},
+ applause(t){for(let i=0;i<140;i++)noise(t+Math.random()*2.2,.05,.06+Math.random()*.08,'bandpass',1200+Math.random()*1800);return 2500},
+ ding(t){tone('sine',1320,t,1.4,.5);tone('sine',2640,t,.8,.12);return 1300},
+ beep(t){tone('sine',880,t,.12,.4);tone('sine',620,t+.18,.14,.4);return 450},
+ toot(t){lfoTo(tone('sawtooth',95,t,.8,.5,70,380).frequency,28,25,t,.85);return 950}
+};
+function playSfx(name){const c=A();if(!c||!SFX[name])return 0;return SFX[name](c.currentTime+.03)}
+
+/* ---------- real effects: render a voice buffer through Web Audio offline ---------- */
+function curve(fn){const n=2048,c=new Float32Array(n);for(let i=0;i<n;i++)c[i]=fn(i/(n-1)*2-1);return c}
+function impulse(ctx,sec){const n=Math.floor(ctx.sampleRate*sec),b=ctx.createBuffer(2,n,ctx.sampleRate);for(let ch=0;ch<2;ch++){const d=b.getChannelData(ch);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.6)}return b}
+async function renderFx(buf,e){
+ e={...E0,...e};const rate=clamp(e.pitch,.5,2),sr=44100;
+ let src=buf;
+ if(e.reverse){src=new AudioBuffer({numberOfChannels:1,length:buf.length,sampleRate:buf.sampleRate});const a=buf.getChannelData(0),b=src.getChannelData(0);for(let i=0;i<a.length;i++)b[i]=a[a.length-1-i]}
+ const tail=e.cave?3:e.echo?2:.3,len=Math.ceil((src.duration/rate+tail+(e.crowd?.15:0))*sr);
+ const C=window.OfflineAudioContext||window.webkitOfflineAudioContext,ctx=new C(1,len,sr);
+ const input=ctx.createGain();let n=input;const to=x=>{n.connect(x);n=x;return x};
+ const voices=e.crowd?[[1,0],[.96,.04],[1.05,.07],[.92,.11],[1.09,.14]]:[[1,0]];
+ voices.forEach(([r,off],i)=>{const s=ctx.createBufferSource();s.buffer=src;s.playbackRate.value=rate*r;
+  if(e.wobble||e.alien){const l=ctx.createOscillator(),g=ctx.createGain();l.frequency.value=e.alien?7:4.5;g.gain.value=e.alien?90:260;l.connect(g);g.connect(s.detune);l.start(0)}
+  const g=ctx.createGain();g.gain.value=i?0.55:1;s.connect(g);g.connect(input);s.start(off)});
+ if(e.crush){const w=ctx.createWaveShaper();w.curve=curve(x=>Math.round(x*6)/6);to(w)}
+ if(e.telephone){const h=ctx.createBiquadFilter();h.type='highpass';h.frequency.value=450;to(h);const l=ctx.createBiquadFilter();l.type='lowpass';l.frequency.value=3200;to(l)}
+ if(e.megaphone){const h=ctx.createBiquadFilter();h.type='highpass';h.frequency.value=650;to(h);const p=ctx.createBiquadFilter();p.type='peaking';p.frequency.value=1800;p.gain.value=10;to(p);const w=ctx.createWaveShaper();w.curve=curve(x=>Math.tanh(x*5));to(w)}
+ if(e.underwater){const l=ctx.createBiquadFilter();l.type='lowpass';l.frequency.value=600;l.Q.value=6;to(l);const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=1.3;g.gain.value=350;o.connect(g);g.connect(l.frequency);o.start(0)}
+ const ring=(f,type)=>{const g=ctx.createGain();g.gain.value=0;const o=ctx.createOscillator();o.type=type;o.frequency.value=f;o.connect(g.gain);o.start(0);to(g)};
+ if(e.robot)ring(52,'sine');
+ if(e.alien)ring(380,'sine');
+ const out=ctx.createGain();n.connect(out);out.connect(ctx.destination);
+ if(e.echo){const d=ctx.createDelay(2),fb=ctx.createGain(),w=ctx.createGain();d.delayTime.value=.3;fb.gain.value=.42;w.gain.value=.55;out.connect(d);d.connect(fb);fb.connect(d);d.connect(w);w.connect(ctx.destination)}
+ if(e.cave){const cv=ctx.createConvolver();cv.buffer=impulse(ctx,2.8);const w=ctx.createGain();w.gain.value=.45;out.connect(cv);cv.connect(w);w.connect(ctx.destination)}
+ const res=await ctx.startRendering();
+ const d=res.getChannelData(0);let pk=0;for(let i=0;i<d.length;i++){const a=Math.abs(d[i]);if(a>pk)pk=a}
+ if(pk>0){const k=.92/pk;for(let i=0;i<d.length;i++)d[i]*=k}
+ return res}
+let curEnd=null,lastOut=null;
+function playBuf(buf){return new Promise(res=>{const c=A();if(!c)return res();const s=c.createBufferSource();s.buffer=buf;s.connect(master);let done=false;const fin=()=>{if(!done){done=true;curEnd=null;res()}};curEnd=fin;s.onended=fin;s.start()})}
+function wavBlob(buf){const d=buf.getChannelData(0),sr=buf.sampleRate,b=new DataView(new ArrayBuffer(44+d.length*2));const W=(o,s)=>{for(let i=0;i<s.length;i++)b.setUint8(o+i,s.charCodeAt(i))};
+ W(0,'RIFF');b.setUint32(4,36+d.length*2,true);W(8,'WAVE');W(12,'fmt ');b.setUint32(16,16,true);b.setUint16(20,1,true);b.setUint16(22,1,true);b.setUint32(24,sr,true);b.setUint32(28,sr*2,true);b.setUint16(32,2,true);b.setUint16(34,16,true);W(36,'data');b.setUint32(40,d.length*2,true);
+ for(let i=0;i<d.length;i++)b.setInt16(44+i*2,clamp(d[i],-1,1)*32767,true);return new Blob([b],{type:'audio/wav'})}
+
+/* ---------- small IndexedDB store for recordings and AI clips ---------- */
+let idbP=null;
+function idb(){if(!idbP)idbP=new Promise((res,rej)=>{try{const r=indexedDB.open('blabberboard',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}});return idbP}
+async function kvGet(k){try{const db=await idb();return await new Promise(res=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined)})}catch(e){return undefined}}
+async function kvSet(k,v){try{const db=await idb();await new Promise(res=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=res})}catch(e){}}
+const hash=s=>{let h=5381;for(let i=0;i<s.length;i++)h=(h*33^s.charCodeAt(i))>>>0;return h.toString(36)};
+
+/* ---------- AI voices (Kokoro, open-source, runs on the device) ---------- */
+const MODEL='onnx-community/Kokoro-82M-v1.0-ONNX';
+let kok=null,kokP=null;
+function aiUI(){const ok=!!kok;$('aiLoad').hidden=ok;$('aiText').textContent=ok?'AI voices are ready.':'AI voices sound much more natural and can use real effects. They need a one-time download of about 90 MB, so use Wi-Fi.'}
+function loadAI(){
+ if(kok)return Promise.resolve(kok);if(kokP)return kokP;
+ $('aiBarWrap').hidden=false;$('aiText').textContent='Downloading the AI voice model… This only happens once.';
+ const files={};const progress_callback=p=>{if(p&&p.status==='progress'&&p.file){files[p.file]=[p.loaded||0,p.total||0];let a=0,b=0;for(const k in files){a+=files[k][0];b+=files[k][1]}if(b)$('aiBar').style.width=(100*a/b).toFixed(1)+'%'}};
+ kokP=(async()=>{let mod;
+  try{mod=await import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/+esm')}catch(e){mod=await import('https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js')}
+  kok=await mod.KokoroTTS.from_pretrained(MODEL,{dtype:'q8',device:'wasm',progress_callback});return kok})();
+ kokP.then(()=>{$('aiBarWrap').hidden=true;aiUI()},()=>{kokP=null;$('aiBarWrap').hidden=true;$('aiLoad').hidden=false;
+  $('aiText').textContent=IN_FRAME?'AI voices can’t download inside the Claude preview. They’ll work once you put the app on your own site (see the setup guide).':'Couldn’t load the AI voices. Check your connection and try again.'});
+ return kokP}
+const aiMem=new Map();
+async function aiBuffer(text,voice,e){
+ e={...E0,...e};const speed=clamp(e.speed/clamp(e.pitch,.5,2),.5,2),key='ai:'+hash(voice+'|'+speed.toFixed(2)+'|'+text);
+ if(aiMem.has(key))return aiMem.get(key);
+ const c=A();let st=await kvGet(key);
+ if(!st){if(!kok){say('Loading AI voices first…');await loadAI()}say('Making the AI voice…');
+  const raw=await kok.generate(text,{voice,speed});st={sr:raw.sampling_rate||24000,data:raw.audio instanceof Float32Array?raw.audio:new Float32Array(raw.audio)};kvSet(key,st)}
+ const b=c.createBuffer(1,st.data.length,st.sr);b.getChannelData(0).set(st.data);aiMem.set(key,b);return b}
+async function recBuffer(id){const blob=await kvGet('rec:'+id);if(!blob)return null;const c=A();return await c.decodeAudioData(await blob.arrayBuffer())}
+
+/* ---------- text twists ---------- */
+const PIR={hello:'ahoy',hi:'ahoy',my:'me',you:'ye',your:'yer',is:'be',are:'be',am:'be',friend:'matey',friends:'mateys',yes:'aye',the:"th'",money:'doubloons',stop:'avast',wow:'shiver me timbers'};
+function twist(t,fx){
+ if(fx.includes('pirate'))t=t.replace(/[a-z']+/gi,w=>PIR[w.toLowerCase()]||w)+', arr!';
+ if(fx.includes('valley'))t=t.split(/\s+/).map((w,i)=>i&&i%3===0?'like, '+w:w).join(' ')+', totally.';
+ if(fx.includes('backwards'))t=t.split(/\s+/).reverse().join(' ');
+ if(fx.includes('piglatin'))t=t.replace(/[a-z]+/gi,w=>{const m=w.match(/^([^aeiou]*)(.*)$/i);return m[1]?(m[2]+m[1]+'ay'):w+'way'});
+ if(fx.includes('stutter'))t=t.split(/\s+/).map((w,i)=>{const s=i%2===0&&/^[a-z]{3,}/i.test(w)&&w.match(/^[^aeiou]*[aeiou]/i);return s?`${s[0]}, ${s[0]}, ${w}`:w}).join(' ');
+ if(fx.includes('stretch'))t=t.replace(/[a-z]{3,}/gi,w=>w.replace(/([aeiou])([^aeiou]*)$/i,(m,v,r)=>v.repeat(5)+r));
+ /* lower-case everything so voices never read "capital H"; a lone I stays */
+ return t.toLowerCase().replace(/\bi\b/g,'I')}
+
+function phonePlan(p,t){
+ const S=[],b={pitch:+p.pitch,rate:+p.rate,volume:+p.volume},w=t.split(/\s+/).filter(Boolean),n=w.length,s=(text,o={})=>S.push({text,...b,...o});
+ if(!n)return S;
+ switch(p.mode){
+  case 'robot':S.push({sfx:'beep'});w.forEach(x=>s(x));break;
+  case 'coaster':w.forEach((x,i)=>s(x,{pitch:.15+1.85*Math.abs(Math.sin(i*.7+.4))}));break;
+  case 'wobble':w.forEach((x,i)=>s(x,{pitch:clamp(b.pitch+(i%2?-.6:.4),0,2)}));break;
+  case 'speedup':w.forEach((x,i)=>s(x,{rate:.6+2.6*i/Math.max(n-1,1)}));break;
+  case 'slowdown':w.forEach((x,i)=>{const k=i/Math.max(n-1,1);s(x,{rate:1.6-1.25*k,pitch:clamp(b.pitch*(1.3-1.2*k),0,2)})});break;
+  case 'echo':{s(t);const e=w.slice(-2).join(' ');s(e,{volume:b.volume*.5,pitch:b.pitch*.9});s(e,{volume:b.volume*.22,pitch:b.pitch*.8,rate:b.rate*.9});break}
+  default:s(t)}
+ return S}
+
+/* ---------- playback ---------- */
+const TTS=window.speechSynthesis;let voices=[],runId=0,livePad=null;
+function loadVoices(){if(!TTS)return;voices=TTS.getVoices().slice().sort((a,b)=>(a.lang.startsWith('en')?0:1)-(b.lang.startsWith('en')?0:1)||a.name.localeCompare(b.name));
+ $('voice').innerHTML='<option value="">Device default</option>'+voices.map(v=>`<option value="${esc(v.name)}">${esc(v.name)} (${esc(v.lang)})</option>`).join('');$('voice').value=cur.voice||''}
+function sayOne(s,voice,tok){return new Promise(res=>{if(tok!==runId||!TTS)return res();const u=new SpeechSynthesisUtterance(s.text);if(voice){u.voice=voice;u.lang=voice.lang}
+ u.pitch=clamp(s.pitch,0,2);u.rate=clamp(s.rate,.1,10);u.volume=clamp(s.volume,0,1);let done=false;const fin=()=>{if(!done){done=true;clearTimeout(tm);res()}};
+ u.onend=fin;u.onerror=fin;const tm=setTimeout(fin,2500+s.text.length*200/Math.max(u.rate,.3));TTS.speak(u)})}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function run(p,padEl){
+ stop();const tok=runId;A();livePad=padEl||null;if(livePad)livePad.classList.add('live');document.body.classList.add('talking');
+ const alive=()=>tok===runId;
+ try{
+  if(p.pre&&p.pre!=='none')await wait(playSfx(p.pre));
+  const src=p.source||'phone',text=twist((p.text||'').trim(),p.fx||[]);
+  if(alive()&&src==='phone'){const v=voices.find(v=>v.name===p.voice)||null;for(const s of phonePlan(p,text)){if(!alive())break;if(s.sfx)await wait(playSfx(s.sfx));else await sayOne(s,v,tok)}}
+  else if(alive()&&(src==='ai'||src==='rec')){
+   let buf=null;
+   if(src==='ai'&&text)buf=await aiBuffer(text,p.aiVoice||'af_heart',p.e);
+   if(src==='rec'){buf=p.recId&&await recBuffer(p.recId);if(!buf)say('That recording isn’t on this device.')}
+   if(buf&&alive()){say('');const out=await renderFx(buf,p.e);lastOut=out;if(alive())await playBuf(out)}}
+  if(alive()&&p.post&&p.post!=='none')await wait(playSfx(p.post));
+ }catch(err){if(alive())say(p.source==='ai'&&!kok?$('aiText').textContent:'Something went wrong playing that. Try again.')}
+ if(alive())idle()}
+function idle(){document.body.classList.remove('talking');if(livePad)livePad.classList.remove('live');livePad=null}
+function stop(){runId++;if(TTS)TTS.cancel();stopAudio();if(curEnd)curEnd();idle()}
+
+/* ---------- composer state ---------- */
+const deep=o=>JSON.parse(JSON.stringify(o));
+let cur={source:'phone',text:$('txt').value,voice:'',aiVoice:'af_heart',recId:'',recName:'',preset:'robot',pitch:.6,rate:.95,volume:1,mode:'robot',fx:[],e:deep(PRESETS.robot.e),pre:'none',post:'none',color:COLORS[1]};
+let editingId=null,delArm=0;
+$('presets').innerHTML=Object.entries(PRESETS).map(([k,v])=>`<button class="chip" data-p="${k}" aria-pressed="false">${v.n}</button>`).join('');
+$('mode').innerHTML=Object.entries(MODES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+$('twists').innerHTML=Object.entries(TWISTS).map(([k,v])=>`<label><input type="checkbox" value="${k}">${v}</label>`).join('');
+$('efx').innerHTML=Object.entries(FXN).map(([k,v])=>`<button class="chip" data-x="${k}" aria-pressed="false">${v}</button>`).join('');
+$('aiVoice').innerHTML=Object.entries(KV).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+const sfxOpts='<option value="none">None</option>'+Object.entries(SFXN).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+$('pre').innerHTML=sfxOpts;$('post').innerHTML=sfxOpts;
+$('swatches').innerHTML=COLORS.map(c=>`<button class="sw" style="background:${c}" data-c="${c}" aria-label="Colour ${c}" aria-pressed="false"></button>`).join('');
+$('sfxs').innerHTML=Object.entries(SFXN).map(([k,v])=>`<button class="sfx" data-s="${k}">${v}</button>`).join('');
+
+function sync(){
+ const s=cur.source;
+ document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.src===s));
+ $('aiBox').hidden=s!=='ai';$('recBox').hidden=s!=='rec';$('textWrap').hidden=s==='rec';$('twistWrap').hidden=s==='rec';
+ $('phoneOpts').hidden=s!=='phone';$('fxOpts').hidden=s==='phone';$('espeedWrap').hidden=s!=='ai';$('recSpeedNote').hidden=s!=='rec';
+ $('wavRow').hidden=s==='phone'||IN_FRAME;
+ $('txt').value=cur.text;$('voice').value=cur.voice||'';$('aiVoice').value=cur.aiVoice||'af_heart';
+ ['pitch','rate','volume'].forEach(k=>{$(k).value=cur[k];$(k+'V').textContent=(+cur[k]).toFixed(2)});
+ $('epitch').value=cur.e.pitch;$('epitchV').textContent=(+cur.e.pitch).toFixed(2)+'×';$('espeed').value=cur.e.speed;$('espeedV').textContent=(+cur.e.speed).toFixed(2)+'×';
+ document.querySelectorAll('#efx .chip').forEach(c=>c.setAttribute('aria-pressed',!!cur.e[c.dataset.x]));
+ $('recInfo').textContent=cur.recName?`Using: ${cur.recName}`:'No sound picked yet.';
+ $('mode').value=cur.mode;$('pre').value=cur.pre||'none';$('post').value=cur.post||'none';
+ document.querySelectorAll('#twists input').forEach(i=>i.checked=cur.fx.includes(i.value));
+ document.querySelectorAll('#presets .chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.p===cur.preset));
+ document.querySelectorAll('.sw').forEach(c=>c.setAttribute('aria-pressed',c.dataset.c===cur.color));
+ const ed=board.find(x=>x.id===editingId);if(!ed)editingId=null;
+ $('editing').hidden=!editingId;if(ed)$('editing').textContent=`Editing “${ed.label}”. Change anything, then press Update.`;
+ $('saveRow').innerHTML=editingId?'<button class="btn small go" id="upd">Update pad</button><button class="btn small" id="asNew">Save as new</button><button class="btn small" id="del">Delete</button><button class="btn small" id="cancel">Cancel</button>':'<button class="btn go" id="add">Save to board</button>'}
+function applyPreset(k){const p=PRESETS[k];Object.assign(cur,{preset:k,pitch:p.pitch,rate:p.rate,volume:p.volume,mode:p.mode,fx:[...p.fx],e:deep(p.e)});sync()}
+const custom=()=>{cur.preset='custom';document.querySelectorAll('#presets .chip').forEach(c=>c.setAttribute('aria-pressed','false'))};
+const snap=()=>({source:cur.source,text:$('txt').value,voice:cur.voice,aiVoice:cur.aiVoice,recId:cur.recId,recName:cur.recName,preset:cur.preset,pitch:+cur.pitch,rate:+cur.rate,volume:+cur.volume,mode:cur.mode,fx:[...cur.fx],e:deep(cur.e),pre:cur.pre,post:cur.post});
+
+/* ---------- board + storage ---------- */
+const LS='blabberboard.v1';let board=[],ref=null,writing=false,pending=false;
+const uid=()=>Math.random().toString(36).slice(2,10);
+function mk(label,text,preset,extra,color){const p=PRESETS[preset];return{id:uid(),label,text,source:'phone',voice:'',aiVoice:'af_heart',preset,pitch:p.pitch,rate:p.rate,volume:p.volume,mode:p.mode,fx:[...p.fx],e:deep(p.e),pre:'none',post:'none',color,...extra}}
+const STARTERS=[
+ mk('Good morning!','Good morning everybody!','opera',{post:'ding'},COLORS[3]),
+ mk('Robot hello','Greetings human. I come in peace. Please bring snacks.','robot',{},COLORS[1]),
+ mk('Ba-dum-tss','','normal',{post:'rimshot'},COLORS[7]),
+ mk('Nope','Nope. Nope. Absolutely not.','giant',{},COLORS[2]),
+ mk('So tired','I am so very very very tired','battery',{},COLORS[5]),
+ mk('Ahoy!','Hello my friend, where is the money','pirate',{post:'airhorn'},COLORS[4]),
+ mk('Who goes there','Who goes there','ghost',{},COLORS[6]),
+ mk('Fail','Well that did not work','normal',{post:'trombone'},COLORS[0])];
+const fix=p=>({source:'phone',aiVoice:'af_heart',fx:[],...p,e:{...E0,...(p.e||{})}});
+function render(){
+ const g=$('board');
+ g.innerHTML=board.length?board.map(p=>{const bits=[PRESETS[p.preset]?.n||'Custom'];if(p.source!=='phone')bits.push(...Object.keys(FXN).filter(k=>p.e&&p.e[k]).map(k=>FXN[k]));bits.push(...(p.fx||[]).map(f=>TWISTS[f]).filter(Boolean));if(p.pre&&p.pre!=='none')bits.push('+ '+SFXN[p.pre]);if(p.post&&p.post!=='none')bits.push('+ '+SFXN[p.post]);
+  return `<div class="pw"><button class="pad" style="--c:${COLORS.includes(p.color)?p.color:COLORS[0]}" data-play="${esc(p.id)}"><em>${esc(SRCN[p.source]||'Phone')}</em><b>${esc(p.label)}</b><small>${esc([...new Set(bits)].join(' · '))}</small></button><button class="ed" data-edit="${esc(p.id)}" aria-label="Edit ${esc(p.label)}">Edit</button></div>`}).join('')
+  :'<div class="empty" style="grid-column:1/-1">No pads yet. Make a voice, name it, and press “Save to board”.</div>'}
+function save(){try{localStorage.setItem(LS,JSON.stringify(board))}catch(e){}if(ref){pending=true;if(!writing)flush()}}
+async function flush(){writing=true;while(pending){pending=false;try{await ref.set({pads:board,updated:Date.now()});$('status').textContent='Saved to your account'}catch(e){$('status').textContent='Saved on this device (sync failed)'}}writing=false}
+function loadLocal(){let raw=null;try{raw=localStorage.getItem(LS)}catch(e){}
+ if(raw){try{board=(JSON.parse(raw)||[]).map(fix)}catch(e){board=[]}}else board=STARTERS;$('status').textContent='Saved on this device'}
+async function connect(){
+ if(!window.claude||!window.claude.use)return;
+ const to=new Promise(r=>setTimeout(()=>r(null),10000));
+ try{const db=await Promise.race([window.claude.use('db'),to]),user=db&&await Promise.race([window.claude.use('user'),to]);if(!db||!user)return;
+  const id=await user.id();if(!id)return;const r=db.collection('data/users/'+id).doc('board');
+  const s=await Promise.race([r.get(),to]);let d=s==null?null:(typeof s.data==='function'?s.data():(s.exists===false?null:s));
+  if(d&&d.data&&!d.pads&&typeof d.data==='object')d=d.data;
+  ref=r;if(d&&Array.isArray(d.pads)){board=d.pads.map(fix);try{localStorage.setItem(LS,JSON.stringify(board))}catch(e){}render();sync();$('status').textContent='Saved to your account'}else save();
+ }catch(e){}}
+
+/* ---------- events ---------- */
+document.querySelector('.seg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;cur.source=b.dataset.src;say('');sync()});
+$('presets').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b){applyPreset(b.dataset.p);go()}});
+function go(){const p=snap();if(p.source==='rec'&&!p.recId){say('Pick or record a sound first.');return}
+ if(p.source!=='rec'&&!p.text.trim()&&p.pre==='none'&&p.post==='none'){$('txt').focus();return}run(p)}
+$('speak').addEventListener('click',go);
+$('stop').addEventListener('click',()=>{stop();say('')});
+$('surprise').addEventListener('click',()=>{const ks=Object.keys(PRESETS).filter(k=>k!=='normal');applyPreset(ks[Math.random()*ks.length|0]);
+ if(cur.source!=='rec'&&Math.random()<.5){const tk=Object.keys(TWISTS),t=tk[Math.random()*tk.length|0];if(!cur.fx.includes(t))cur.fx.push(t)}
+ if(cur.source!=='phone'&&Math.random()<.6){const fk=Object.keys(FXN);cur.e[fk[Math.random()*fk.length|0]]=true}
+ const sk=Object.keys(SFXN);cur.post=Math.random()<.5?sk[Math.random()*sk.length|0]:'none';cur.preset='custom';sync();go()});
+$('txt').addEventListener('input',e=>cur.text=e.target.value);
+$('voice').addEventListener('change',e=>cur.voice=e.target.value);
+$('aiVoice').addEventListener('change',e=>cur.aiVoice=e.target.value);
+$('aiLoad').addEventListener('click',()=>{loadAI().catch(()=>{})});
+['pitch','rate','volume'].forEach(k=>$(k).addEventListener('input',e=>{cur[k]=+e.target.value;$(k+'V').textContent=cur[k].toFixed(2);custom()}));
+$('epitch').addEventListener('input',e=>{cur.e.pitch=+e.target.value;$('epitchV').textContent=cur.e.pitch.toFixed(2)+'×';custom()});
+$('espeed').addEventListener('input',e=>{cur.e.speed=+e.target.value;$('espeedV').textContent=cur.e.speed.toFixed(2)+'×';custom()});
+$('efx').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;cur.e[b.dataset.x]=!cur.e[b.dataset.x];custom();sync()});
+$('mode').addEventListener('change',e=>{cur.mode=e.target.value;custom()});
+$('twists').addEventListener('change',()=>{cur.fx=[...document.querySelectorAll('#twists input:checked')].map(i=>i.value);custom()});
+$('pre').addEventListener('change',e=>cur.pre=e.target.value);
+$('post').addEventListener('change',e=>cur.post=e.target.value);
+$('recFile').addEventListener('change',async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;
+ try{const c=A();await c.decodeAudioData(await f.arrayBuffer());const id=uid();await kvSet('rec:'+id,f);cur.recId=id;cur.recName=f.name||'My recording';say('');sync();go()}
+ catch(err){say('That file isn’t a sound this browser can play.')}e.target.value=''});
+$('wav').addEventListener('click',()=>{if(!lastOut){say('Play an AI voice or recording first.');return}
+ try{const a=document.createElement('a');a.href=URL.createObjectURL(wavBlob(lastOut));a.download=($('label').value.trim()||'blabber')+'.wav';document.body.appendChild(a);a.click();a.remove()}catch(e){say('Saving files isn’t allowed here.')}});
+$('swatches').addEventListener('click',e=>{const b=e.target.closest('.sw');if(b){cur.color=b.dataset.c;sync()}});
+$('sfxs').addEventListener('click',e=>{const b=e.target.closest('.sfx');if(b){stopAudio();playSfx(b.dataset.s)}});
+function padName(){const l=$('label').value.trim();return l||(cur.source==='rec'?cur.recName.replace(/\.[a-z0-9]+$/i,'').slice(0,24):$('txt').value.trim().slice(0,24))||'My pad'}
+function done(){editingId=null;$('label').value='';save();render();sync()}
+$('saveRow').addEventListener('click',e=>{const id=e.target.id;
+ if((id==='add'||id==='asNew')){if(cur.source==='rec'&&!cur.recId){say('Pick or record a sound first.');return}board.push({id:uid(),label:padName(),color:cur.color,...snap()});done()}
+ else if(id==='upd'){const i=board.findIndex(x=>x.id===editingId);if(i>-1)board[i]={...board[i],...snap(),label:padName(),color:cur.color};done()}
+ else if(id==='cancel'){editingId=null;$('label').value='';sync()}
+ else if(id==='del'){if(Date.now()-delArm<3000){board=board.filter(x=>x.id!==editingId);done()}else{delArm=Date.now();e.target.textContent='Tap again to delete';setTimeout(()=>{if(e.target.isConnected)e.target.textContent='Delete'},3000)}}});
+$('board').addEventListener('click',e=>{const ed=e.target.closest('[data-edit]');
+ if(ed){const p=board.find(x=>x.id===ed.dataset.edit);if(!p)return;editingId=p.id;cur={...cur,...deep(p)};$('label').value=p.label;$('tune').open=true;sync();$('mk').scrollIntoView({behavior:'smooth',block:'start'});return}
+ const pl=e.target.closest('[data-play]');if(pl){const p=board.find(x=>x.id===pl.dataset.play);if(p){if(pl.classList.contains('live')){stop();return}run(p,pl)}}});
+$('copyCode').addEventListener('click',async()=>{const code=JSON.stringify({blabberboard:1,pads:board});
+ try{await navigator.clipboard.writeText(code);say('Board code copied.')}catch(e){$('pasteCode').value=code;$('pasteCode').select();say('Copy the code from the box below.')}});
+function importCode(replace){let d;try{d=JSON.parse($('pasteCode').value)}catch(e){say('That doesn’t look like a board code.');return}
+ const pads=Array.isArray(d)?d:d&&d.pads;if(!Array.isArray(pads)){say('That doesn’t look like a board code.');return}
+ const clean=pads.filter(p=>p&&typeof p==='object').map(p=>fix({...p,id:uid(),label:String(p.label||'Pad').slice(0,40),text:String(p.text||'')}));
+ board=replace?clean:board.concat(clean);$('pasteCode').value='';save();render();sync();say(`Added ${clean.length} pad${clean.length===1?'':'s'}.`)}
+$('importAdd').addEventListener('click',()=>importCode(false));
+$('importReplace').addEventListener('click',()=>importCode(true));
+
+if(!TTS)say('This browser can’t use phone voices, but AI voices, recordings and sound effects still work.');
+else{loadVoices();TTS.addEventListener?TTS.addEventListener('voiceschanged',loadVoices):(TTS.onvoiceschanged=loadVoices)}
+loadLocal();render();sync();connect();
+}
+</script>
+</body>
+</html>
